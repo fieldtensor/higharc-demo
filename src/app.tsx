@@ -251,9 +251,7 @@ const App = () =>
             onClick={cycleThemeMode}
             aria-label="Cycle theme preference"
           >
-            Theme:
-            {" "}
-            {themeButtonLabel}
+            {`Theme: ${themeButtonLabel}`}
           </button>
         </div>
 

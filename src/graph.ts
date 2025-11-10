@@ -139,6 +139,12 @@ export class GraphFace
     return [...neighbors];
   }
 
+  // This method returns GraphFace[][], a list of lists of faces. The first
+  // GraphFace[] will just chain [this]. The second will contains all of the
+  // neighbors of `this`. The third will contain the neighbors of those
+  // neighbors. Etc... The end result is a layered onion of faces emanating
+  // out from `this`.
+
   shellLayers()
   {
     const layers = [] as GraphFace[][];
@@ -199,6 +205,10 @@ export class GraphVertex
       this.edges.splice(edgeIndex, 1);
   }
 
+  // Compute the angle of the edge makes with the x-axis as it emanates out
+  // form the vertex. This method assumes that the provided edge is attached
+  // the vertex, or else the result is undefined.
+
   edgeAngle(edge: GraphEdge)
   {
     const [v0, v1] = edge.vertices();
@@ -251,6 +261,28 @@ export class Graph
     this.buildFaces();
   }
 
+  // We generate a random graph with the following algorithm:
+  // 
+  // 1. Place `vertexCount` vertices at random positions.
+  //
+  // 2. Generate a set of all unique vertex-vertex pairs.
+  //
+  // 3. Scramble the set of vertex-vertex pairs so they're in no particular
+  //    order.
+  //
+  // 4. Iterate over every vertex-vertex pair and draw an edge between them,
+  //    but only if the edge would not intersect with any existing edges.
+  //
+  // 5. The edges now exist. Each edge will form a wedge with its neighbor,
+  //    and this wedge will have an angle. For each edge-edge wedge check if
+  //    the angle is very small. If so, remove the longer edge from the graph.
+  //    This will create a more pleasing graph shape by removing extremely thin
+  //    triangles.
+  //
+  // 6. This whole procedure will naturally leave some vertices which have a
+  //    single edge only, and aren't part of any faces. As a final pruning
+  //    step detect and remove those vertices. 
+
   private generateRandomGraph(vertexCount: number)
   {
     this.addRandomVertices(vertexCount);
@@ -273,7 +305,7 @@ export class Graph
     }
   }
 
-  loadFromSerialized(data: GraphSerialized)
+  private loadFromSerialized(data: GraphSerialized)
   {
     const vertexInstances = data.vertices.map(
       ([x, y]) =>
@@ -356,7 +388,7 @@ export class Graph
       vertex.pos = vertex.pos.sub(center).scale(uniformScale);
   }
 
-  removeSmallAngles(threshold: number)
+  private removeSmallAngles(threshold: number)
   {
     let removedEdge = false;
 
@@ -400,7 +432,7 @@ export class Graph
     return removedEdge;
   }
 
-  removeSparseVertices()
+  private removeSparseVertices()
   {
     const verticesToRemove = [] as GraphVertex[];
 
@@ -437,6 +469,11 @@ export class Graph
 
     return true;
   }
+
+  // This is our main face-gathering method. The computational complexity is
+  // roughly O(HE), where HE is the number of half edges. Each half edge is
+  // visisted once, either as the start of a new face, or when walking the
+  // edges of an existing face.
 
   private buildFaces()
   {
@@ -502,6 +539,20 @@ export class Graph
 
     this.faces = faces;
   }
+
+  // When we create our half-edges elsewhere they get initialized with a null
+  // halfEdge.next pointer. The next pointer points to the next half edge in
+  // the face. Walking from next, to next, to next will walk the boundary of
+  // the face, and land you back at the half-edge where you started.
+  // 
+  // This method links up the halfEdge.next pointers in each half-edge.
+  // 
+  // This logically builds the connectivity information needed to build our
+  // GraphFace instances, but the instance are created elsewhere in
+  // the buildFaces() method.
+  //
+  // The computational complexity here is O(HE), where HE is the number of
+  // half edges. Each half-edge is visited once.
 
   private linkHalfEdgesAroundVertices()
   {
@@ -640,7 +691,7 @@ export class Graph
       edge.vertex1.edges.push(edge);
   }
 
-  removeEdge(edge: GraphEdge)
+  private removeEdge(edge: GraphEdge)
   {
     if( ! edge )
       return;
@@ -905,9 +956,6 @@ export class GraphRenderer
       return null;
 
     const layers = hoveredFace.shellLayers();
-
-    if( ! layers.length )
-      return null;
 
     const styles = new Map<GraphFace, { color: string; alpha: number }>();
     const totalLayers = layers.length;
