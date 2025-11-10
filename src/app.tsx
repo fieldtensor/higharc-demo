@@ -2,6 +2,17 @@ import React from "react";
 import { Graph, GraphRenderer, DEFAULT_VERTEX_COUNT } from "./graph";
 import { parseGraphData } from "./util";
 
+type ThemeName = "light" | "dark";
+type ThemeMode = ThemeName | "system";
+
+const getSystemTheme = (): ThemeName =>
+{
+  if( typeof window === "undefined" )
+    return "dark";
+
+  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+};
+
 const App = () =>
 {
   const canvasRef = React.useRef<HTMLCanvasElement | null>(null);
@@ -11,6 +22,9 @@ const App = () =>
   const renderGraphRef = React.useRef<(() => void) | null>(null);
   const [jsonText, setJsonText] = React.useState("");
   const [jsonError, setJsonError] = React.useState<string | null>(null);
+  const [systemTheme, setSystemTheme] = React.useState<ThemeName>(() => getSystemTheme());
+  const [themeMode, setThemeMode] = React.useState<ThemeMode>("system");
+  const activeTheme = themeMode === "system" ? systemTheme : themeMode;
 
   const updateJsonFromGraph = React.useCallback(
     () =>
@@ -109,6 +123,45 @@ const App = () =>
     [updateJsonFromGraph]
   );
 
+  React.useEffect(
+    () =>
+    {
+      if( typeof window === "undefined" )
+        return;
+
+      const media = window.matchMedia("(prefers-color-scheme: dark)");
+
+      const updateSystemTheme = () => setSystemTheme(media.matches ? "dark" : "light");
+
+      updateSystemTheme();
+
+      if( typeof media.addEventListener === "function" )
+        media.addEventListener("change", updateSystemTheme);
+      else
+        media.addListener(updateSystemTheme);
+
+      return () =>
+      {
+        if( typeof media.removeEventListener === "function" )
+          media.removeEventListener("change", updateSystemTheme);
+        else
+          media.removeListener(updateSystemTheme);
+      };
+    },
+    []
+  );
+
+  React.useEffect(
+    () =>
+    {
+      if( typeof document === "undefined" )
+        return;
+
+      document.documentElement.dataset.theme = activeTheme;
+    },
+    [activeTheme]
+  );
+
   const handleRandomize = () =>
   {
     const renderer = rendererRef.current;
@@ -152,6 +205,25 @@ const App = () =>
     }
   };
 
+  const cycleThemeMode = () =>
+  {
+    setThemeMode(currentMode =>
+    {
+      if( currentMode === "system" )
+        return "light";
+
+      if( currentMode === "light" )
+        return "dark";
+
+      return "system";
+    });
+  };
+
+  const themeButtonLabel =
+    themeMode === "system" ? (systemTheme === "dark" ? "System (Dark)" : "System (Light)") :
+    themeMode === "dark" ? "Dark" :
+    "Light";
+
   return (
     <div className="app-shell">
       <div className="canvas-container">
@@ -166,9 +238,22 @@ const App = () =>
       <aside className="control-panel" aria-label="Graph controls">
         <h2 className="control-panel__title">Controls</h2>
 
-        <div className="control-panel__section">
+        <div className="control-panel__section control-panel__section--compact-next">
           <button type="button" className="control-button" onClick={handleRandomize}>
             Randomize
+          </button>
+        </div>
+
+        <div className="control-panel__section">
+          <button
+            type="button"
+            className="control-button"
+            onClick={cycleThemeMode}
+            aria-label="Cycle theme preference"
+          >
+            Theme:
+            {" "}
+            {themeButtonLabel}
           </button>
         </div>
 
