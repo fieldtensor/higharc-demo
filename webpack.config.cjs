@@ -12,7 +12,7 @@ module.exports = (env, argv) =>
       path: path.resolve(__dirname, "dist"),
       filename: isProduction ? "[name].[contenthash].js" : "[name].js",
       chunkFilename: isProduction ? "[name].[contenthash].js" : "[name].js",
-      publicPath: "/",
+      publicPath: isProduction ? "./" : "/",
       clean: true
     },
     devtool: isProduction ? "source-map" : "eval-source-map",
